@@ -81,3 +81,46 @@ canvas {
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+.environment-slider {
+  appearance: none;
+  outline: none;
+}
+
+.environment-slider:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+  border-radius: 9999px;
+}
+
+.environment-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.environment-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.environment-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: currentColor;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 10px currentColor;
+  cursor: pointer;
+}
+
+.environment-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  background: currentColor;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 10px currentColor;
+  cursor: pointer;
+}

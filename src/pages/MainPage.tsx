@@ -6,6 +6,7 @@ import { EcosystemStats } from '@/components/UI/EcosystemStats';
 import { FoodWebPanel } from '@/components/UI/FoodWebPanel';
 import { SpeciesInfoCard } from '@/components/UI/SpeciesInfoCard';
 import { ControlButtons } from '@/components/UI/ControlButtons';
+import { EnvironmentPanel } from '@/components/UI/EnvironmentPanel';
 import { useEcosystemSimulation } from '@/hooks/useEcosystemSimulation';
 import { useEcosystemStore, AQUARIUM_BOUNDS } from '@/store/useEcosystemStore';
 
@@ -14,7 +15,6 @@ export function MainPage() {
 
   const selectedSpeciesId = useEcosystemStore((s) => s.selectedSpeciesId);
   const addOrganism = useEcosystemStore((s) => s.addOrganism);
-  const setSelectedSpecies = useEcosystemStore((s) => s.setSelectedSpecies);
 
   useEffect(() => {
     const canvas = document.querySelector('canvas');
@@ -61,6 +61,7 @@ export function MainPage() {
       </div>
 
       <ControlButtons />
+      <EnvironmentPanel />
       <SpeciesToolbar />
       <EcosystemStats />
       <FoodWebPanel />

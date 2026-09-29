@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
-import type { Organism, EcosystemStats, Species } from '@/types/ecosystem';
+import type { EnvironmentSettings, Organism, EcosystemStats, Species } from '@/types/ecosystem';
 import { getSpeciesById, SPECIES } from '@/data/species';
 
 interface EcosystemStore {
@@ -10,6 +10,8 @@ interface EcosystemStore {
   isRunning: boolean;
   simulationTime: number;
   showLabels: boolean;
+  waterTemperature: number;
+  lightIntensity: number;
 
   addOrganism: (speciesId: string, position?: THREE.Vector3) => void;
   removeOrganism: (organismId: string) => void;
@@ -19,11 +21,26 @@ interface EcosystemStore {
   toggleSimulation: () => void;
   incrementTime: () => void;
   resetEcosystem: () => void;
+  resetEnvironment: () => void;
+  setWaterTemperature: (temperature: number) => void;
+  setLightIntensity: (intensity: number) => void;
   toggleLabels: () => void;
   getStats: () => EcosystemStats;
   batchUpdateOrganisms: (updates: { id: string; updates: Partial<Organism> }[]) => void;
   batchRemoveOrganisms: (ids: string[]) => void;
 }
+
+const DEFAULT_ENVIRONMENT: EnvironmentSettings = {
+  waterTemperature: 24,
+  lightIntensity: 60,
+};
+
+const WATER_TEMPERATURE_MIN = 10;
+const WATER_TEMPERATURE_MAX = 30;
+const WATER_TEMPERATURE_DEFAULT = DEFAULT_ENVIRONMENT.waterTemperature;
+const LIGHT_INTENSITY_MIN = 0;
+const LIGHT_INTENSITY_MAX = 100;
+const LIGHT_INTENSITY_DEFAULT = DEFAULT_ENVIRONMENT.lightIntensity;
 
 const AQUARIUM_BOUNDS = {
   minX: -4,
@@ -33,6 +50,10 @@ const AQUARIUM_BOUNDS = {
   minZ: -2,
   maxZ: 2,
 };
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 11);
@@ -81,6 +102,8 @@ export const useEcosystemStore = create<EcosystemStore>((set, get) => ({
   isRunning: true,
   simulationTime: 0,
   showLabels: true,
+  waterTemperature: WATER_TEMPERATURE_DEFAULT,
+  lightIntensity: LIGHT_INTENSITY_DEFAULT,
 
   addOrganism: (speciesId, position) => {
     const state = get();
@@ -153,6 +176,23 @@ export const useEcosystemStore = create<EcosystemStore>((set, get) => ({
       selectedOrganismId: null,
       simulationTime: 0,
       isRunning: true,
+      ...DEFAULT_ENVIRONMENT,
+    });
+  },
+
+  resetEnvironment: () => {
+    set(DEFAULT_ENVIRONMENT);
+  },
+
+  setWaterTemperature: (temperature) => {
+    set({
+      waterTemperature: clamp(temperature, WATER_TEMPERATURE_MIN, WATER_TEMPERATURE_MAX),
+    });
+  },
+
+  setLightIntensity: (intensity) => {
+    set({
+      lightIntensity: clamp(intensity, LIGHT_INTENSITY_MIN, LIGHT_INTENSITY_MAX),
     });
   },
 
@@ -199,4 +239,12 @@ export const useEcosystemStore = create<EcosystemStore>((set, get) => ({
   },
 }));
 
-export { AQUARIUM_BOUNDS };
+export {
+  AQUARIUM_BOUNDS,
+  WATER_TEMPERATURE_MIN,
+  WATER_TEMPERATURE_MAX,
+  WATER_TEMPERATURE_DEFAULT,
+  LIGHT_INTENSITY_MIN,
+  LIGHT_INTENSITY_MAX,
+  LIGHT_INTENSITY_DEFAULT,
+};

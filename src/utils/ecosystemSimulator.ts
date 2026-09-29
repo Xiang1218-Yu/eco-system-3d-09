@@ -1,10 +1,27 @@
 import * as THREE from 'three';
-import type { Organism } from '@/types/ecosystem';
+import type { EnvironmentSettings, Organism } from '@/types/ecosystem';
 import { getSpeciesById, SPECIES } from '@/data/species';
 import { AQUARIUM_BOUNDS } from '@/store/useEcosystemStore';
 
+const OPTIMAL_WATER_TEMPERATURE = 24;
+const Q10 = 2;
+const MIN_METABOLIC_RATE = 0.4;
+const MAX_METABOLIC_RATE = 1.6;
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function getTemperatureFactor(temperature: number): number {
+  return clamp(
+    Q10 ** ((temperature - OPTIMAL_WATER_TEMPERATURE) / 10),
+    MIN_METABOLIC_RATE,
+    MAX_METABOLIC_RATE,
+  );
+}
+
+function getLightFactor(lightIntensity: number): number {
+  return lightIntensity / 100;
 }
 
 function distance(a: THREE.Vector3, b: THREE.Vector3): number {
@@ -85,6 +102,7 @@ function findNearestDead(
 
 export function simulateStep(
   organisms: Organism[],
+  environment: EnvironmentSettings,
 ): {
   updates: { id: string; updates: Partial<Organism> }[];
   toRemove: string[];
@@ -94,6 +112,8 @@ export function simulateStep(
   const toRemove: Set<string> = new Set();
   const toAdd: { speciesId: string; position: THREE.Vector3 }[] = [];
   const eatenPrey: Set<string> = new Set();
+  const metabolicRate = getTemperatureFactor(environment.waterTemperature);
+  const photosynthesisRate = getLightFactor(environment.lightIntensity);
 
   for (const organism of organisms) {
     const species = getSpeciesById(organism.speciesId);
@@ -107,7 +127,7 @@ export function simulateStep(
       continue;
     }
 
-    energy -= 0.05 + species.size * 0.02;
+    energy -= (0.05 + species.size * 0.02) * metabolicRate;
 
     const organismUpdate: Partial<Organism> = {};
     const newPosition = organism.position.clone();
@@ -240,7 +260,7 @@ export function simulateStep(
       }
     } else if (species.trophicLevel === 'producer') {
       organismUpdate.state = 'idle';
-      energy += 0.1;
+      energy += 0.15 * photosynthesisRate - 0.02 * metabolicRate;
     }
 
     energy = clamp(energy, 0, species.energyValue * 1.5);

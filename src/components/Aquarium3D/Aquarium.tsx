@@ -1,12 +1,29 @@
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo } from 'react';
 import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { Organism3D } from '@/components/Organisms/Organism';
-import { useEcosystemStore } from '@/store/useEcosystemStore';
-import { AQUARIUM_BOUNDS } from '@/store/useEcosystemStore';
+import {
+  AQUARIUM_BOUNDS,
+  LIGHT_INTENSITY_MAX,
+  LIGHT_INTENSITY_MIN,
+  WATER_TEMPERATURE_MAX,
+  WATER_TEMPERATURE_MIN,
+  useEcosystemStore,
+} from '@/store/useEcosystemStore';
 import { getSpeciesById } from '@/data/species';
+
+function getWaterColor(temperature: number) {
+  const progress = THREE.MathUtils.clamp(
+    (temperature - WATER_TEMPERATURE_MIN) / (WATER_TEMPERATURE_MAX - WATER_TEMPERATURE_MIN),
+    0,
+    1,
+  );
+  const coldColor = new THREE.Color('#0284c7');
+  const warmColor = new THREE.Color('#f97316');
+  return `#${coldColor.lerp(warmColor, progress).getHexString()}`;
+}
 
 function Glass() {
   const thickness = 0.08;
@@ -83,11 +100,17 @@ function Glass() {
 
 function Water() {
   const waterRef = useRef<THREE.Mesh>(null);
+  const waterTemperature = useEcosystemStore((s) => s.waterTemperature);
+  const waterColor = getWaterColor(waterTemperature);
 
   useFrame((state) => {
     if (waterRef.current) {
       const material = waterRef.current.material as THREE.MeshPhysicalMaterial;
-      material.opacity = 0.35 + Math.sin(state.clock.elapsedTime * 0.5) * 0.02;
+      material.color.set(waterColor);
+      const temperatureProgress =
+        (waterTemperature - WATER_TEMPERATURE_MIN) /
+        (WATER_TEMPERATURE_MAX - WATER_TEMPERATURE_MIN);
+      material.opacity = 0.3 + temperatureProgress * 0.08 + Math.sin(state.clock.elapsedTime * 0.5) * 0.02;
     }
   });
 
@@ -99,7 +122,7 @@ function Water() {
     <mesh ref={waterRef} position={[0, 0, 0]}>
       <boxGeometry args={[width, height, depth]} />
       <meshPhysicalMaterial
-        color="#0ea5e9"
+        color={waterColor}
         transparent
         opacity={0.35}
         roughness={0}
@@ -158,12 +181,18 @@ function Substrate() {
   );
 }
 
-function LightRays() {
+function LightRays({ lightIntensity }: { lightIntensity: number }) {
   const raysRef = useRef<THREE.Group>(null);
+  const lightFactor = lightIntensity / LIGHT_INTENSITY_MAX;
 
   useFrame((state) => {
     if (raysRef.current) {
       raysRef.current.rotation.y = state.clock.elapsedTime * 0.02;
+      raysRef.current.children.forEach((child) => {
+        const material = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        material.opacity = 0.03 + lightFactor * 0.08;
+        material.visible = lightIntensity > LIGHT_INTENSITY_MIN;
+      });
     }
   });
 
@@ -172,7 +201,12 @@ function LightRays() {
       {[...Array(5)].map((_, i) => (
         <mesh key={i} position={[i * 1.5 - 3, 0, 0]} rotation={[0, 0, 0.1]}>
           <coneGeometry args={[0.3, 4, 8, 1, true]} />
-          <meshBasicMaterial color="#fef3c7" transparent opacity={0.06} side={THREE.DoubleSide} />
+          <meshBasicMaterial
+            color="#fef3c7"
+            transparent
+            opacity={0.03 + lightFactor * 0.08}
+            side={THREE.DoubleSide}
+          />
         </mesh>
       ))}
     </group>
@@ -287,7 +321,8 @@ interface Aquarium3DProps {
 
 export function Aquarium3D({ onAquariumClick }: Aquarium3DProps) {
   const { organisms } = useEcosystemStore();
-  const selectedSpeciesId = useEcosystemStore((s) => s.selectedSpeciesId);
+  const lightIntensity = useEcosystemStore((s) => s.lightIntensity);
+  const lightFactor = lightIntensity / LIGHT_INTENSITY_MAX;
 
   return (
     <Canvas
@@ -299,21 +334,26 @@ export function Aquarium3D({ onAquariumClick }: Aquarium3DProps) {
       <color attach="background" args={[0x0a1628]} />
       <fog attach="fog" args={[0x0a1628, 10, 20]} />
 
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.15 + lightFactor * 0.3} />
       <directionalLight
         position={[2, 5, 3]}
-        intensity={1.2}
+        intensity={0.2 + lightFactor * 1.2}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
-      <pointLight position={[0, 3, 0]} intensity={0.6} color="#a5f3fc" distance={10} />
+      <pointLight
+        position={[0, 3, 0]}
+        intensity={0.1 + lightFactor * 0.6}
+        color="#a5f3fc"
+        distance={10}
+      />
       <pointLight position={[-3, 1, -2]} intensity={0.3} color="#60a5fa" distance={8} />
 
       <Water />
       <Glass />
       <Substrate />
-      <LightRays />
+      <LightRays lightIntensity={lightIntensity} />
       <Bubbles />
 
       {organisms.map((organism) => {

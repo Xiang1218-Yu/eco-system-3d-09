@@ -35,6 +35,11 @@ export interface Organism {
   scale: number;
 }
 
+export interface EnvironmentSettings {
+  waterTemperature: number;
+  lightIntensity: number;
+}
+
 export interface EcosystemStats {
   time: number;
   isRunning: boolean;

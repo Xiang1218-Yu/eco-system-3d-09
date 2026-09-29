@@ -5,11 +5,9 @@ import { SPECIES, TROPHIC_LEVEL_COLORS, TROPHIC_LEVEL_LABELS } from '@/data/spec
 import type { TrophicLevel } from '@/types/ecosystem';
 
 export function EcosystemStats() {
-  const organisms = useEcosystemStore((s) => s.organisms);
-  const simulationTime = useEcosystemStore((s) => s.simulationTime);
   const getStats = useEcosystemStore((s) => s.getStats);
 
-  const stats = useMemo(() => getStats(), [organisms, simulationTime, getStats]);
+  const stats = getStats();
 
   const levelData = useMemo(() => {
     const levels: Record<TrophicLevel, number> = {
