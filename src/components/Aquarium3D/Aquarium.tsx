@@ -83,11 +83,21 @@ function Glass() {
 
 function Water() {
   const waterRef = useRef<THREE.Mesh>(null);
+  const waterTemperature = useEcosystemStore((s) => s.waterTemperature);
+
+  // 低温偏冷蓝、高温偏暖青绿，默认 25°C 接近原色
+  const targetColor = useMemo(() => {
+    const t = THREE.MathUtils.clamp((waterTemperature - 10) / 25, 0, 1);
+    const cold = new THREE.Color('#0a4bd1');
+    const warm = new THREE.Color('#10e1f9');
+    return cold.lerp(warm, t);
+  }, [waterTemperature]);
 
   useFrame((state) => {
     if (waterRef.current) {
       const material = waterRef.current.material as THREE.MeshPhysicalMaterial;
       material.opacity = 0.35 + Math.sin(state.clock.elapsedTime * 0.5) * 0.02;
+      material.color.lerp(targetColor, 0.08);
     }
   });
 
@@ -160,11 +170,18 @@ function Substrate() {
 
 function LightRays() {
   const raysRef = useRef<THREE.Group>(null);
+  const lightIntensity = useEcosystemStore((s) => s.lightIntensity);
+  const rayMaterials = useRef<THREE.MeshBasicMaterial[]>([]);
 
   useFrame((state) => {
     if (raysRef.current) {
       raysRef.current.rotation.y = state.clock.elapsedTime * 0.02;
     }
+    // 光束可见度随光照强度变化，默认 60% 时接近原透明度
+    const rayOpacity = (lightIntensity / 100) * 0.1;
+    rayMaterials.current.forEach((mat) => {
+      if (mat) mat.opacity = rayOpacity;
+    });
   });
 
   return (
@@ -172,7 +189,15 @@ function LightRays() {
       {[...Array(5)].map((_, i) => (
         <mesh key={i} position={[i * 1.5 - 3, 0, 0]} rotation={[0, 0, 0.1]}>
           <coneGeometry args={[0.3, 4, 8, 1, true]} />
-          <meshBasicMaterial color="#fef3c7" transparent opacity={0.06} side={THREE.DoubleSide} />
+          <meshBasicMaterial
+            ref={(m) => {
+              if (m) rayMaterials.current[i] = m;
+            }}
+            color="#fef3c7"
+            transparent
+            opacity={0.06}
+            side={THREE.DoubleSide}
+          />
         </mesh>
       ))}
     </group>
@@ -281,6 +306,32 @@ function ClickableArea({ onAquariumClick }: { onAquariumClick: (point: THREE.Vec
   );
 }
 
+function EnvironmentLights() {
+  // 光照滑块（0~100%，默认 60%）直接驱动缸内光源，默认值下与原亮度一致
+  const lightIntensity = useEcosystemStore((s) => s.lightIntensity);
+  const factor = lightIntensity / 60;
+
+  return (
+    <>
+      <ambientLight intensity={0.4 * factor} />
+      <directionalLight
+        position={[2, 5, 3]}
+        intensity={1.2 * factor}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
+      <pointLight
+        position={[0, 3, 0]}
+        intensity={0.6 * factor}
+        color="#a5f3fc"
+        distance={10}
+      />
+      <pointLight position={[-3, 1, -2]} intensity={0.3 * factor} color="#60a5fa" distance={8} />
+    </>
+  );
+}
+
 interface Aquarium3DProps {
   onAquariumClick: (point: THREE.Vector3) => void;
 }
@@ -299,17 +350,7 @@ export function Aquarium3D({ onAquariumClick }: Aquarium3DProps) {
       <color attach="background" args={[0x0a1628]} />
       <fog attach="fog" args={[0x0a1628, 10, 20]} />
 
-      <ambientLight intensity={0.4} />
-      <directionalLight
-        position={[2, 5, 3]}
-        intensity={1.2}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      />
-      <pointLight position={[0, 3, 0]} intensity={0.6} color="#a5f3fc" distance={10} />
-      <pointLight position={[-3, 1, -2]} intensity={0.3} color="#60a5fa" distance={8} />
-
+      <EnvironmentLights />
       <Water />
       <Glass />
       <Substrate />

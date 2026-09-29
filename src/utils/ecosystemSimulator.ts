@@ -2,6 +2,11 @@ import * as THREE from 'three';
 import type { Organism } from '@/types/ecosystem';
 import { getSpeciesById, SPECIES } from '@/data/species';
 import { AQUARIUM_BOUNDS } from '@/store/useEcosystemStore';
+import {
+  getMetabolismFactor,
+  getPhotosynthesisFactor,
+  type EnvironmentState,
+} from '@/config/environment';
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -85,6 +90,7 @@ function findNearestDead(
 
 export function simulateStep(
   organisms: Organism[],
+  environment: EnvironmentState,
 ): {
   updates: { id: string; updates: Partial<Organism> }[];
   toRemove: string[];
@@ -94,6 +100,10 @@ export function simulateStep(
   const toRemove: Set<string> = new Set();
   const toAdd: { speciesId: string; position: THREE.Vector3 }[] = [];
   const eatenPrey: Set<string> = new Set();
+
+  // 温度 → 代谢速率（能量消耗）；光照 → 生产者光合产能
+  const metabolismFactor = getMetabolismFactor(environment.waterTemperature);
+  const photosynthesisFactor = getPhotosynthesisFactor(environment.lightIntensity);
 
   for (const organism of organisms) {
     const species = getSpeciesById(organism.speciesId);
@@ -107,7 +117,13 @@ export function simulateStep(
       continue;
     }
 
-    energy -= 0.05 + species.size * 0.02;
+    if (species.trophicLevel === 'producer') {
+      // 生产者基础呼吸耗能维持不变，保证实验变量单一
+      energy -= 0.05 + species.size * 0.02;
+    } else {
+      // 温度影响代谢：低温耗能减缓，高温耗能加快
+      energy -= (0.05 + species.size * 0.02) * metabolismFactor;
+    }
 
     const organismUpdate: Partial<Organism> = {};
     const newPosition = organism.position.clone();
@@ -240,7 +256,8 @@ export function simulateStep(
       }
     } else if (species.trophicLevel === 'producer') {
       organismUpdate.state = 'idle';
-      energy += 0.1;
+      // 光照强度决定生产者光合产能，黑暗时无法产能
+      energy += 0.1 * photosynthesisFactor;
     }
 
     energy = clamp(energy, 0, species.energyValue * 1.5);

@@ -2,6 +2,11 @@ import { create } from 'zustand';
 import * as THREE from 'three';
 import type { Organism, EcosystemStats, Species } from '@/types/ecosystem';
 import { getSpeciesById, SPECIES } from '@/data/species';
+import {
+  DEFAULT_ENVIRONMENT,
+  clampEnvironment,
+  type EnvironmentState,
+} from '@/config/environment';
 
 interface EcosystemStore {
   organisms: Organism[];
@@ -10,6 +15,8 @@ interface EcosystemStore {
   isRunning: boolean;
   simulationTime: number;
   showLabels: boolean;
+  waterTemperature: number;
+  lightIntensity: number;
 
   addOrganism: (speciesId: string, position?: THREE.Vector3) => void;
   removeOrganism: (organismId: string) => void;
@@ -20,6 +27,8 @@ interface EcosystemStore {
   incrementTime: () => void;
   resetEcosystem: () => void;
   toggleLabels: () => void;
+  setEnvironment: (updates: Partial<EnvironmentState>) => void;
+  resetEnvironment: () => void;
   getStats: () => EcosystemStats;
   batchUpdateOrganisms: (updates: { id: string; updates: Partial<Organism> }[]) => void;
   batchRemoveOrganisms: (ids: string[]) => void;
@@ -81,6 +90,8 @@ export const useEcosystemStore = create<EcosystemStore>((set, get) => ({
   isRunning: true,
   simulationTime: 0,
   showLabels: true,
+  waterTemperature: DEFAULT_ENVIRONMENT.waterTemperature,
+  lightIntensity: DEFAULT_ENVIRONMENT.lightIntensity,
 
   addOrganism: (speciesId, position) => {
     const state = get();
@@ -153,11 +164,26 @@ export const useEcosystemStore = create<EcosystemStore>((set, get) => ({
       selectedOrganismId: null,
       simulationTime: 0,
       isRunning: true,
+      waterTemperature: DEFAULT_ENVIRONMENT.waterTemperature,
+      lightIntensity: DEFAULT_ENVIRONMENT.lightIntensity,
     });
   },
 
   toggleLabels: () => {
     set((prev) => ({ showLabels: !prev.showLabels }));
+  },
+
+  setEnvironment: (updates) => {
+    const clamped = clampEnvironment(updates);
+    if (Object.keys(clamped).length === 0) return;
+    set(clamped);
+  },
+
+  resetEnvironment: () => {
+    set({
+      waterTemperature: DEFAULT_ENVIRONMENT.waterTemperature,
+      lightIntensity: DEFAULT_ENVIRONMENT.lightIntensity,
+    });
   },
 
   getStats: () => {
